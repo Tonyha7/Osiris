@@ -22,16 +22,106 @@ struct WindowsFileSystem {
         };
         if (NT_SUCCESS(WindowsSyscalls::NtCreateFile(&handle, FILE_GENERIC_READ, &objectAttributes, &statusBlock, nullptr, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, FILE_OPEN, FILE_SYNCHRONOUS_IO_NONALERT, nullptr, 0)))
             return handle;
-        return HANDLE{};
+        return INVALID_HANDLE_VALUE;
     }
 
-    static std::size_t readFile(HANDLE fileHandle, std::size_t fileOffset, std::span<std::byte> buffer) noexcept
+    static HANDLE createFileForOverwrite(std::wstring_view ntPath) noexcept
+    {
+        HANDLE handle;
+        IO_STATUS_BLOCK statusBlock{};
+        UNICODE_STRING fileName{
+            .Length = static_cast<USHORT>(ntPath.length() * sizeof(wchar_t)),
+            .MaximumLength = static_cast<USHORT>(ntPath.length() * sizeof(wchar_t)),
+            .Buffer = const_cast<wchar_t*>(ntPath.data())
+        };
+        OBJECT_ATTRIBUTES objectAttributes{
+            .Length{sizeof(OBJECT_ATTRIBUTES)},
+            .RootDirectory{nullptr},
+            .ObjectName{&fileName},
+            .Attributes{OBJ_CASE_INSENSITIVE},
+            .SecurityDescriptor{nullptr},
+            .SecurityQualityOfService{nullptr}
+        };
+        if (NT_SUCCESS(WindowsSyscalls::NtCreateFile(&handle, FILE_GENERIC_WRITE | DELETE, &objectAttributes, &statusBlock, nullptr, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ, FILE_SUPERSEDE, FILE_NON_DIRECTORY_FILE | FILE_SYNCHRONOUS_IO_NONALERT, nullptr, 0)))
+            return handle;
+        return INVALID_HANDLE_VALUE;
+    }
+
+    static void createDirectory(std::wstring_view ntPath) noexcept
+    {
+        IO_STATUS_BLOCK statusBlock{};
+        UNICODE_STRING directoryName{
+            .Length = static_cast<USHORT>(ntPath.length() * sizeof(wchar_t)),
+            .MaximumLength = static_cast<USHORT>(ntPath.length() * sizeof(wchar_t)),
+            .Buffer = const_cast<wchar_t*>(ntPath.data())
+        };
+        OBJECT_ATTRIBUTES objectAttributes{
+            .Length{sizeof(OBJECT_ATTRIBUTES)},
+            .RootDirectory{nullptr},
+            .ObjectName{&directoryName},
+            .Attributes{OBJ_CASE_INSENSITIVE},
+            .SecurityDescriptor{nullptr},
+            .SecurityQualityOfService{nullptr}
+        };
+        
+        HANDLE handle;
+        auto ntStatus = WindowsSyscalls::NtCreateFile(&handle, FILE_LIST_DIRECTORY | SYNCHRONIZE, &objectAttributes, &statusBlock, nullptr, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ | FILE_SHARE_WRITE, FILE_CREATE, FILE_DIRECTORY_FILE | FILE_SYNCHRONOUS_IO_NONALERT | FILE_OPEN_FOR_BACKUP_INTENT, nullptr, 0);
+        if (NT_SUCCESS(ntStatus))
+            WindowsSyscalls::NtClose(handle);
+    }
+
+    static void deleteFile(std::wstring_view ntPath) noexcept
+    {
+        IO_STATUS_BLOCK statusBlock{};
+        UNICODE_STRING directoryName{
+            .Length = static_cast<USHORT>(ntPath.length() * sizeof(wchar_t)),
+            .MaximumLength = static_cast<USHORT>(ntPath.length() * sizeof(wchar_t)),
+            .Buffer = const_cast<wchar_t*>(ntPath.data())
+        };
+        OBJECT_ATTRIBUTES objectAttributes{
+            .Length{sizeof(OBJECT_ATTRIBUTES)},
+            .RootDirectory{nullptr},
+            .ObjectName{&directoryName},
+            .Attributes{OBJ_CASE_INSENSITIVE},
+            .SecurityDescriptor{nullptr},
+            .SecurityQualityOfService{nullptr}
+        };
+        if (HANDLE handle; NT_SUCCESS(WindowsSyscalls::NtCreateFile(&handle, DELETE, &objectAttributes, &statusBlock, nullptr, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ | FILE_SHARE_WRITE, FILE_OPEN, FILE_NON_DIRECTORY_FILE | FILE_SYNCHRONOUS_IO_NONALERT | FILE_OPEN_FOR_BACKUP_INTENT | FILE_DELETE_ON_CLOSE, nullptr, 0)))
+            WindowsSyscalls::NtClose(handle);
+    }
+
+    static std::size_t readFile(HANDLE fileHandle, std::size_t fileOffset, void* buffer, std::size_t bufferSize) noexcept
     {
         IO_STATUS_BLOCK statusBlock{};
         LARGE_INTEGER offset{.QuadPart{static_cast<LONGLONG>(fileOffset)}};
-        if (NT_SUCCESS(WindowsSyscalls::NtReadFile(fileHandle, nullptr, nullptr, nullptr, &statusBlock, buffer.data(), static_cast<ULONG>(buffer.size()), &offset, nullptr)) && statusBlock.Information <= buffer.size()) {
+        if (NT_SUCCESS(WindowsSyscalls::NtReadFile(fileHandle, nullptr, nullptr, nullptr, &statusBlock, buffer, static_cast<ULONG>(bufferSize), &offset, nullptr)) && statusBlock.Information <= bufferSize) {
             return statusBlock.Information;
         }
         return 0;
+    }
+
+    static std::size_t writeFile(HANDLE fileHandle, std::size_t fileOffset, void* buffer, std::size_t bufferSize) noexcept
+    {
+        IO_STATUS_BLOCK statusBlock{};
+        LARGE_INTEGER offset{.QuadPart{static_cast<LONGLONG>(fileOffset)}};
+        if (NT_SUCCESS(WindowsSyscalls::NtWriteFile(fileHandle, nullptr, nullptr, nullptr, &statusBlock, buffer, static_cast<ULONG>(bufferSize), &offset, nullptr)) && statusBlock.Information <= bufferSize) {
+            return statusBlock.Information;
+        }
+        return 0;
+    }
+
+    static void renameFile(HANDLE fileHandle, std::wstring_view newFilePath) noexcept
+    {
+        IO_STATUS_BLOCK statusBlock{};
+
+        assert(newFilePath.length() <= 200);
+        alignas(FILE_RENAME_INFO) std::byte buffer[sizeof(FILE_RENAME_INFO) + 200 * sizeof(wchar_t)];
+
+        FILE_RENAME_INFO* info = new (&buffer) FILE_RENAME_INFO{};
+        info->FileNameLength = static_cast<DWORD>(newFilePath.length() * sizeof(wchar_t));
+        std::memcpy(&info->FileName, newFilePath.data(), newFilePath.length() * sizeof(wchar_t));
+
+        constexpr auto FileRenameInformation{static_cast<FILE_INFORMATION_CLASS>(10)};
+        WindowsSyscalls::NtSetInformationFile(fileHandle, &statusBlock, info, sizeof(FILE_RENAME_INFO) + 200 * sizeof(wchar_t), FileRenameInformation);
     }
 };

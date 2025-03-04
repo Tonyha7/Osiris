@@ -1,5 +1,6 @@
 #pragma once
 
+#include <Config/Config.h>
 #include <GameClient/Entities/GameRules.h>
 #include <GameClient/Entities/PlantedC4.h>
 #include <GameClient/Entities/PlayerController.h>
@@ -217,6 +218,26 @@ struct HookContext {
     [[nodiscard]] auto& stylePropertySymbolsAndVMTs() noexcept
     {
         return fullGlobalContext.stylePropertySymbolsAndVMTs;
+    }
+
+    [[nodiscard]] auto config() noexcept
+    {
+        return Config{*this};
+    }
+
+    [[nodiscard]] auto& configState() noexcept
+    {
+        return fullGlobalContext.configState;
+    }
+
+    [[nodiscard]] auto gui() noexcept
+    {
+        return PanoramaGUI{*this};
+    }
+
+    [[nodiscard]] const auto& osirisDirectoryPath() noexcept
+    {
+        return fullGlobalContext.osirisDirectoryPath;
     }
 
 private:
