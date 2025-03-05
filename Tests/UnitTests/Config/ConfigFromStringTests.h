@@ -159,6 +159,15 @@ testing::Values(
             .offset = 1
         },
         .expectedReadBytes = 0
+    },
+    ConfigFromStringTestParam{
+        .bufferContent = u8"}{",
+        .expectedConversionState{
+            .nestingLevel = 0,
+            .indexInNestingLevel{0},
+            .offset = 0
+        },
+        .expectedReadBytes = 0
     }
 )));
 

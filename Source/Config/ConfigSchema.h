@@ -3,8 +3,11 @@
 template <typename HookContext>
 class ConfigSchema {
 public:
-    HookContext& hookContext;
-    FeaturesStates& featuresStates;
+    explicit ConfigSchema(HookContext& hookContext) noexcept
+        : hookContext{hookContext}
+        , featuresStates{hookContext.featuresStates()}
+    {
+    }
 
     [[nodiscard]] decltype(auto) performConversion(auto&& configConversion) noexcept
     {
@@ -105,27 +108,27 @@ private:
         configConversion.beginObject(u8"Visualizations");
 
         configConversion.beginObject(u8"Footsteps");
-        configConversion.boolean(u8"Enabled", loadBool(featuresStates.soundFeaturesStates.footstepVisualizerState.enabled), saveBool(featuresStates.soundFeaturesStates.footstepVisualizerState.enabled));
+        configConversion.boolean(u8"Enabled", loadFootstepSoundVisualizationEnabled(), saveBool(featuresStates.soundFeaturesStates.footstepVisualizerState.enabled));
         configConversion.endObject();
 
         configConversion.beginObject(u8"BombPlant");
-        configConversion.boolean(u8"Enabled", loadBool(featuresStates.soundFeaturesStates.bombPlantVisualizerState.enabled), saveBool(featuresStates.soundFeaturesStates.bombPlantVisualizerState.enabled));
+        configConversion.boolean(u8"Enabled", loadBombPlantSoundVisualizationEnabled(), saveBool(featuresStates.soundFeaturesStates.bombPlantVisualizerState.enabled));
         configConversion.endObject();
 
         configConversion.beginObject(u8"BombBeep");
-        configConversion.boolean(u8"Enabled", loadBool(featuresStates.soundFeaturesStates.bombBeepVisualizerState.enabled), saveBool(featuresStates.soundFeaturesStates.bombBeepVisualizerState.enabled));
+        configConversion.boolean(u8"Enabled", loadBombBeepSoundVisualizationEnabled(), saveBool(featuresStates.soundFeaturesStates.bombBeepVisualizerState.enabled));
         configConversion.endObject();
 
         configConversion.beginObject(u8"BombDefuse");
-        configConversion.boolean(u8"Enabled", loadBool(featuresStates.soundFeaturesStates.bombDefuseVisualizerState.enabled), saveBool(featuresStates.soundFeaturesStates.bombDefuseVisualizerState.enabled));
+        configConversion.boolean(u8"Enabled", loadBombDefuseSoundVisualizationEnabled(), saveBool(featuresStates.soundFeaturesStates.bombDefuseVisualizerState.enabled));
         configConversion.endObject();
 
         configConversion.beginObject(u8"WeaponScope");
-        configConversion.boolean(u8"Enabled", loadBool(featuresStates.soundFeaturesStates.weaponScopeVisualizerState.enabled), saveBool(featuresStates.soundFeaturesStates.weaponScopeVisualizerState.enabled));
+        configConversion.boolean(u8"Enabled", loadWeaponScopeSoundVisualizationEnabled(), saveBool(featuresStates.soundFeaturesStates.weaponScopeVisualizerState.enabled));
         configConversion.endObject();
 
         configConversion.beginObject(u8"WeaponReload");
-        configConversion.boolean(u8"Enabled", loadBool(featuresStates.soundFeaturesStates.weaponReloadVisualizerState.enabled), saveBool(featuresStates.soundFeaturesStates.weaponReloadVisualizerState.enabled));
+        configConversion.boolean(u8"Enabled", loadWeaponReloadSoundVisualizationEnabled(), saveBool(featuresStates.soundFeaturesStates.weaponReloadVisualizerState.enabled));
         configConversion.endObject();
 
         configConversion.endObject();
@@ -408,4 +411,73 @@ private:
             return featuresStates.visualFeaturesStates.playerInfoInWorldState.playerStateIconsToShow.has<BlindedIconPanel>();
         };
     }
+
+    [[nodiscard]] auto loadFootstepSoundVisualizationEnabled() const noexcept
+    {
+        return [this](bool value) {
+            auto&& toggle = hookContext.features().soundFeatures().footstepVisualizerToggle();
+            if (value)
+                toggle.enable();
+            else
+                toggle.disable();
+        };
+    }
+
+    [[nodiscard]] auto loadBombPlantSoundVisualizationEnabled() const noexcept
+    {
+        return [this](bool value) {
+            auto&& toggle = hookContext.features().soundFeatures().bombPlantVisualizerToggle();
+            if (value)
+                toggle.enable();
+            else
+                toggle.disable();
+        };
+    }
+
+    [[nodiscard]] auto loadBombBeepSoundVisualizationEnabled() const noexcept
+    {
+        return [this](bool value) {
+            auto&& toggle = hookContext.features().soundFeatures().bombBeepVisualizerToggle();
+            if (value)
+                toggle.enable();
+            else
+                toggle.disable();
+        };
+    }
+
+    [[nodiscard]] auto loadBombDefuseSoundVisualizationEnabled() const noexcept
+    {
+        return [this](bool value) {
+            auto&& toggle = hookContext.features().soundFeatures().bombDefuseVisualizerToggle();
+            if (value)
+                toggle.enable();
+            else
+                toggle.disable();
+        };
+    }
+
+    [[nodiscard]] auto loadWeaponScopeSoundVisualizationEnabled() const noexcept
+    {
+        return [this](bool value) {
+            auto&& toggle = hookContext.features().soundFeatures().weaponScopeVisualizerToggle();
+            if (value)
+                toggle.enable();
+            else
+                toggle.disable();
+        };
+    }
+
+    [[nodiscard]] auto loadWeaponReloadSoundVisualizationEnabled() const noexcept
+    {
+        return [this](bool value) {
+            auto&& toggle = hookContext.features().soundFeatures().weaponReloadVisualizerToggle();
+            if (value)
+                toggle.enable();
+            else
+                toggle.disable();
+        };
+    }
+
+    HookContext& hookContext;
+    FeaturesStates& featuresStates;
 };

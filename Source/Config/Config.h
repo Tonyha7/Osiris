@@ -98,8 +98,9 @@ private:
         ConfigStringConversionState conversionState;
         std::size_t parsedBytes{0};
         do {
+            assert(conversionState.offset <= readBytes);
             ConfigFromString configFromString{std::span{fileOperationBuffer + conversionState.offset, readBytes - conversionState.offset}, conversionState};
-            parsedBytes = ConfigSchema{hookContext, hookContext.featuresStates()}.performConversion(configFromString);
+            parsedBytes = ConfigSchema{hookContext}.performConversion(configFromString);
         } while (parsedBytes != 0 && (conversionState.nestingLevel != 0 || conversionState.indexInNestingLevel[0] != 1));
         
         assert(conversionState.nestingLevel == 0 && conversionState.indexInNestingLevel[0] == 1);
@@ -110,7 +111,7 @@ private:
     {
         ConfigStringConversionState conversionState;
         ConfigToString configToString{fileOperationBuffer, conversionState};
-        const auto numberOfBytesToWrite = ConfigSchema{hookContext, hookContext.featuresStates()}.performConversion(configToString);
+        const auto numberOfBytesToWrite = ConfigSchema{hookContext}.performConversion(configToString);
         assert(conversionState.nestingLevel == 0 && conversionState.indexInNestingLevel[0] == 1);
 
         if (!hookContext.osirisDirectoryPath().get() || !state().pathToConfigDirectory || !state().pathToConfigFile || !state().pathToConfigTempFile)
@@ -121,10 +122,8 @@ private:
         WindowsFileSystem::createDirectory(state().pathToConfigDirectory.get());
 
         if (const auto handle = WindowsFileSystem::createFileForOverwrite(state().pathToConfigTempFile.get()); handle != INVALID_HANDLE_VALUE) {
-            if (WindowsFileSystem::writeFile(handle, 0, fileOperationBuffer, numberOfBytesToWrite) == numberOfBytesToWrite) {
-                WindowsFileSystem::deleteFile(state().pathToConfigFile.get());
+            if (WindowsFileSystem::writeFile(handle, 0, fileOperationBuffer, numberOfBytesToWrite) == numberOfBytesToWrite)
                 WindowsFileSystem::renameFile(handle, state().pathToConfigFile.get());
-            }
             WindowsSyscalls::NtClose(handle);
         }
 #elif IS_LINUX()

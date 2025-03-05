@@ -6,33 +6,33 @@
 
 class ConfigFromString {
 public:
-    ConfigFromString(std::span<const char8_t> buffer, ConfigStringConversionState& readState) noexcept
+    ConfigFromString(std::span<const char8_t> buffer, ConfigStringConversionState& conversionState) noexcept
         : buffer{buffer}
-        , readState{readState}
+        , conversionState{conversionState}
     {
     }
 
     void beginRoot() noexcept
     {
-        if (shouldReadThisObject() && skipWhitespaces() && readChar(u8'{'))
+        if (shouldReadMe() && skipWhitespaces() && readChar(u8'{'))
             increaseConversionNestingLevel();
         increaseNestingLevel();
     }
 
     [[nodiscard]] std::size_t endRoot() noexcept
     {
-        if (shouldReadThisObject() && skipWhitespaces() && readChar(u8'}'))
-            ++readState.indexInNestingLevel[--readState.nestingLevel];
+        if (shouldReadMe() && skipWhitespaces() && readChar(u8'}'))
+            markConversionComplete();
         decreaseNestingLevel();
-        readState.offset += readIndex;
+        conversionState.offset += readIndex;
         return readIndex;
     }
 
-    void beginObject(const char8_t* id) noexcept
+    void beginObject(const char8_t* key) noexcept
     {
-        if (shouldReadThisObject()) {
+        if (shouldReadMe()) {
             const auto previousReadIndex = readIndex;
-            if (readCommaAfterPreviousElement() && readKey(id) && skipWhitespaces() && readChar(u8'{'))
+            if (readUntilStartOfValue(key) && readChar(u8'{'))
                 increaseConversionNestingLevel();
             else
                 readIndex = previousReadIndex;
@@ -42,45 +42,60 @@ public:
 
     void endObject() noexcept
     {
-        if (shouldReadThisObject() && skipWhitespaces() && readChar(u8'}'))
-            --readState.nestingLevel;
+        if (shouldReadMe() && skipWhitespaces() && readChar(u8'}'))
+            decreaseConversionNestingLevel();
         decreaseNestingLevel();
     }
 
     void boolean(const char8_t* key, auto&& valueSetter, auto&& /* valueGetter */) noexcept
     {
-        if (shouldReadThisObject()) {
+        if (shouldReadMe()) {
             const auto previousReadIndex = readIndex;
-            if (bool parsedBool{}; readCommaAfterPreviousElement() && readKey(key) && skipWhitespaces() && parseBool(parsedBool)) {
+            if (bool parsedBool{}; readUntilStartOfValue(key) && parseBool(parsedBool)) {
                 valueSetter(parsedBool);
-                readState.indexInNestingLevel[readState.nestingLevel] = 0;
+                markElementReadAtCurrentNestingLevel();
             } else {
                 readIndex = previousReadIndex;
             }
         }
-        ++indexInNestingLevel[nestingLevel];
+        increaseIndexInNestingLevel();
     }
-
 
     void uint(const char8_t* key, auto&& valueSetter, auto&& /* valueGetter */) noexcept
     {
-        if (shouldReadThisObject()) {
+        if (shouldReadMe()) {
             const auto previousReadIndex = readIndex;
-            std::uint64_t parsedUint{0};
-            if (readCommaAfterPreviousElement() && readKey(key) && skipWhitespaces() && parseUint(parsedUint)) {
+            if (std::uint64_t parsedUint{}; readUntilStartOfValue(key) && parseUint(parsedUint)) {
                 valueSetter(parsedUint);
-                readState.indexInNestingLevel[readState.nestingLevel] = 0;
+                markElementReadAtCurrentNestingLevel();
             } else {
                 readIndex = previousReadIndex;
             }
         }
-        ++indexInNestingLevel[nestingLevel];
+        increaseIndexInNestingLevel();
     }
 
 private:
+    void markConversionComplete() noexcept
+    {
+        assert(conversionState.nestingLevel == 1);
+        assert(conversionState.indexInNestingLevel[0] == 0);
+        ++conversionState.indexInNestingLevel[--conversionState.nestingLevel];
+    }
+
+    void markElementReadAtCurrentNestingLevel() noexcept
+    {
+        conversionState.indexInNestingLevel[conversionState.nestingLevel] = 0;
+    }
+
+    [[nodiscard]] bool readUntilStartOfValue(const char8_t* key) noexcept
+    {
+        return readCommaAfterPreviousElement() && readKey(key) && skipWhitespaces();
+    }
+
     [[nodiscard]] bool readCommaAfterPreviousElement() noexcept
     {
-        if (readState.indexInNestingLevel[readState.nestingLevel] != config_params::kInvalidObjectIndex) {
+        if (conversionState.indexInNestingLevel[conversionState.nestingLevel] != config_params::kInvalidObjectIndex) {
             skipWhitespaces();
             return readChar(u8',');
         }
@@ -100,9 +115,9 @@ private:
 
     void increaseConversionNestingLevel() noexcept
     {
-        assert(readState.nestingLevel < config_params::kMaxNestingLevel);
-        readState.indexInNestingLevel[readState.nestingLevel] = indexInNestingLevel[nestingLevel];
-        readState.indexInNestingLevel[++readState.nestingLevel] = config_params::kInvalidObjectIndex;
+        assert(conversionState.nestingLevel < config_params::kMaxNestingLevel);
+        conversionState.indexInNestingLevel[conversionState.nestingLevel] = indexInNestingLevel[nestingLevel];
+        conversionState.indexInNestingLevel[++conversionState.nestingLevel] = config_params::kInvalidObjectIndex;
     }
 
     void decreaseNestingLevel() noexcept
@@ -112,12 +127,23 @@ private:
         ++indexInNestingLevel[--nestingLevel];
     }
 
-    [[nodiscard]] bool shouldReadThisObject() const noexcept
+    void decreaseConversionNestingLevel() noexcept
     {
-        if (readState.nestingLevel != nestingLevel)
+        assert(conversionState.nestingLevel > 0);
+        --conversionState.nestingLevel;
+    }  
+
+    void increaseIndexInNestingLevel() noexcept
+    {
+        ++indexInNestingLevel[nestingLevel];
+    }
+
+    [[nodiscard]] bool shouldReadMe() const noexcept
+    {
+        if (conversionState.nestingLevel != nestingLevel)
             return false;
-        for (auto i = 0; i < readState.nestingLevel; ++i) {
-            if (indexInNestingLevel[i] != readState.indexInNestingLevel[i])
+        for (auto i = 0; i < conversionState.nestingLevel; ++i) {
+            if (indexInNestingLevel[i] != conversionState.indexInNestingLevel[i])
                 return false;
         }
         return true;
@@ -201,7 +227,7 @@ private:
 
     std::span<const char8_t> buffer;
     std::size_t readIndex{0};
-    ConfigStringConversionState& readState;
+    ConfigStringConversionState& conversionState;
     std::array<config_params::ObjectIndexType, config_params::kMaxNestingLevel + 1> indexInNestingLevel{};
     config_params::NestingLevelIndexType nestingLevel{0};
 };
