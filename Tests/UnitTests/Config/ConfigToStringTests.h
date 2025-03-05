@@ -87,7 +87,7 @@ testing::Values(
     ConfigToStringTestParam{
         .bufferSize = 1,
         .conversionState{
-            .nestingLevel{1}
+            .nestingLevel = 1
         },
         .expectedBufferContent = u8"}",
         .expectedConversionState{
