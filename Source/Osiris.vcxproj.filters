@@ -1808,6 +1808,9 @@
     <ClInclude Include="Platform\PlatformPath.h">
       <Filter>Platform</Filter>
     </ClInclude>
+    <ClInclude Include="Utils\Wcslen.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="UI\Panorama\CreateGUI.js">

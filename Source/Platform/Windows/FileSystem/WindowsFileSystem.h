@@ -6,6 +6,7 @@
 #include <winternl.h>
 
 #include <Platform/Windows/Syscalls/WindowsSyscalls.h>
+#include <Utils/Wcslen.h>
 
 struct WindowsFileSystem {
     static HANDLE openFileForReading(UNICODE_STRING fileName) noexcept
@@ -25,14 +26,15 @@ struct WindowsFileSystem {
         return INVALID_HANDLE_VALUE;
     }
 
-    static HANDLE createFileForOverwrite(std::wstring_view ntPath) noexcept
+    static HANDLE createFileForOverwrite(const wchar_t* ntPath) noexcept
     {
         HANDLE handle;
         IO_STATUS_BLOCK statusBlock{};
+        const auto pathLength = utils::wcslen(ntPath);
         UNICODE_STRING fileName{
-            .Length = static_cast<USHORT>(ntPath.length() * sizeof(wchar_t)),
-            .MaximumLength = static_cast<USHORT>(ntPath.length() * sizeof(wchar_t)),
-            .Buffer = const_cast<wchar_t*>(ntPath.data())
+            .Length = static_cast<USHORT>(pathLength * sizeof(wchar_t)),
+            .MaximumLength = static_cast<USHORT>(pathLength * sizeof(wchar_t)),
+            .Buffer = const_cast<wchar_t*>(ntPath)
         };
         OBJECT_ATTRIBUTES objectAttributes{
             .Length = sizeof(OBJECT_ATTRIBUTES),
@@ -47,13 +49,14 @@ struct WindowsFileSystem {
         return INVALID_HANDLE_VALUE;
     }
 
-    static void createDirectory(std::wstring_view ntPath) noexcept
+    static void createDirectory(const wchar_t* ntPath) noexcept
     {
         IO_STATUS_BLOCK statusBlock{};
+        const auto pathLength = utils::wcslen(ntPath);
         UNICODE_STRING directoryName{
-            .Length = static_cast<USHORT>(ntPath.length() * sizeof(wchar_t)),
-            .MaximumLength = static_cast<USHORT>(ntPath.length() * sizeof(wchar_t)),
-            .Buffer = const_cast<wchar_t*>(ntPath.data())
+            .Length = static_cast<USHORT>(pathLength * sizeof(wchar_t)),
+            .MaximumLength = static_cast<USHORT>(pathLength * sizeof(wchar_t)),
+            .Buffer = const_cast<wchar_t*>(ntPath)
         };
         OBJECT_ATTRIBUTES objectAttributes{
             .Length = sizeof(OBJECT_ATTRIBUTES),
@@ -69,26 +72,6 @@ struct WindowsFileSystem {
         if (NT_SUCCESS(ntStatus))
             WindowsSyscalls::NtClose(handle);
     }
-
-    // static void deleteFile(std::wstring_view ntPath) noexcept
-    // {
-    //     IO_STATUS_BLOCK statusBlock{};
-    //     UNICODE_STRING directoryName{
-    //         .Length = static_cast<USHORT>(ntPath.length() * sizeof(wchar_t)),
-    //         .MaximumLength = static_cast<USHORT>(ntPath.length() * sizeof(wchar_t)),
-    //         .Buffer = const_cast<wchar_t*>(ntPath.data())
-    //     };
-    //     OBJECT_ATTRIBUTES objectAttributes{
-    //         .Length = sizeof(OBJECT_ATTRIBUTES),
-    //         .RootDirectory = nullptr,
-    //         .ObjectName = &directoryName,
-    //         .Attributes = OBJ_CASE_INSENSITIVE,
-    //         .SecurityDescriptor = nullptr,
-    //         .SecurityQualityOfService = nullptr
-    //     };
-    //     if (HANDLE handle; NT_SUCCESS(WindowsSyscalls::NtCreateFile(&handle, DELETE, &objectAttributes, &statusBlock, nullptr, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ | FILE_SHARE_WRITE, FILE_OPEN, FILE_NON_DIRECTORY_FILE | FILE_SYNCHRONOUS_IO_NONALERT | FILE_OPEN_FOR_BACKUP_INTENT | FILE_DELETE_ON_CLOSE, nullptr, 0)))
-    //         WindowsSyscalls::NtClose(handle);
-    // }
 
     static std::size_t readFile(HANDLE fileHandle, std::size_t fileOffset, void* buffer, std::size_t bufferSize) noexcept
     {
@@ -110,12 +93,14 @@ struct WindowsFileSystem {
         return 0;
     }
 
-    static void renameFile(HANDLE fileHandle, std::wstring_view newFilePath) noexcept
+    static void renameFile(HANDLE fileHandle, const wchar_t* newFilePath) noexcept
     {
         IO_STATUS_BLOCK statusBlock{};
 
+        const auto pathLength = utils::wcslen(newFilePath);
+
         constexpr auto kMaxPathLength{200};
-        if (newFilePath.length() > kMaxPathLength) {
+        if (pathLength > kMaxPathLength) {
             assert(false);
             return;
         }
@@ -124,10 +109,10 @@ struct WindowsFileSystem {
 
         FILE_RENAME_INFO* info = new (&buffer) FILE_RENAME_INFO{};
         info->ReplaceIfExists = TRUE;
-        info->FileNameLength = static_cast<DWORD>(newFilePath.length() * sizeof(wchar_t));
-        std::memcpy(&info->FileName, newFilePath.data(), newFilePath.length() * sizeof(wchar_t));
+        info->FileNameLength = static_cast<DWORD>(pathLength * sizeof(wchar_t));
+        std::memcpy(&info->FileName, newFilePath, pathLength * sizeof(wchar_t));
         constexpr wchar_t kNullTerminator{L'\0'};
-        std::memcpy(reinterpret_cast<std::byte*>(&info->FileName) + newFilePath.length() * sizeof(wchar_t), &kNullTerminator, sizeof(kNullTerminator));
+        std::memcpy(reinterpret_cast<std::byte*>(&info->FileName) + pathLength * sizeof(wchar_t), &kNullTerminator, sizeof(kNullTerminator));
 
         constexpr std::underlying_type_t<FILE_INFORMATION_CLASS> fileRenameInformationClass{10};
         FILE_INFORMATION_CLASS fileRenameInformationClassEnum{};

@@ -10,6 +10,7 @@
 #if IS_WIN64()
 #include <Platform/Windows/FileSystem/WindowsFileSystem.h>
 #include <Platform/Macros/PlatformSpecific.h>
+#include <Utils/Wcslen.h>
 #endif
 
 template <typename HookContext>
@@ -78,7 +79,7 @@ private:
             return;
 
 #if IS_WIN64()
-        const std::basic_string_view path{state().pathToConfigFile.get()};
+        const std::basic_string_view path{state().pathToConfigFile.get(), utils::wcslen(state().pathToConfigFile.get())};
         UNICODE_STRING pathStr{.Length = static_cast<USHORT>(path.length() * sizeof(wchar_t)), .MaximumLength = static_cast<USHORT>(path.length() * sizeof(wchar_t)), .Buffer = const_cast<wchar_t*>(path.data())};
         if (const auto handle = WindowsFileSystem::openFileForReading(pathStr); handle != INVALID_HANDLE_VALUE) {
             readBytes = WindowsFileSystem::readFile(handle, 0, fileOperationBuffer, sizeof(fileOperationBuffer));
@@ -143,7 +144,7 @@ private:
         if (!hookContext.osirisDirectoryPath().get())
             return;
 
-        const std::basic_string_view osirisDirectoryPath{hookContext.osirisDirectoryPath().get()};
+        const std::basic_string_view osirisDirectoryPath{hookContext.osirisDirectoryPath().get(), WIN64_LINUX(utils::wcslen, std::strlen)(hookContext.osirisDirectoryPath().get())};
         constexpr auto kPathSeparatorLength{1};
         constexpr auto kNullTerminatorLength{1};
         const auto length = osirisDirectoryPath.length() + kPathSeparatorLength + build::kConfigDirectoryName.length() + kNullTerminatorLength;
@@ -164,7 +165,7 @@ private:
         if (!state().pathToConfigDirectory)
             return;
 
-        const std::basic_string_view pathToConfigDirectory{state().pathToConfigDirectory.get()};
+        const std::basic_string_view pathToConfigDirectory{state().pathToConfigDirectory.get(), WIN64_LINUX(utils::wcslen, std::strlen)(state().pathToConfigDirectory.get())};
         constexpr auto kPathSeparatorLength{1};
         constexpr auto kNullTerminatorLength{1};
         const auto length = pathToConfigDirectory.length() + kPathSeparatorLength + configFileName.length() + kNullTerminatorLength;
@@ -185,7 +186,7 @@ private:
         if (!state().pathToConfigFile)
             return;
 
-        const std::basic_string_view pathToConfigFile{state().pathToConfigFile.get()};
+        const std::basic_string_view pathToConfigFile{state().pathToConfigFile.get(), WIN64_LINUX(utils::wcslen, std::strlen)(state().pathToConfigFile.get())};
         const std::basic_string_view configTempFileSuffix{WIN64_LINUX(L".new", ".new")};
         constexpr auto kNullTerminatorLength{1};
         const auto length = pathToConfigFile.length() + configTempFileSuffix.length() + kNullTerminatorLength;

@@ -534,6 +534,7 @@
     <ClInclude Include="Utils\TypedStaticStringPool.h" />
     <ClInclude Include="Utils\TypeIndex.h" />
     <ClInclude Include="Utils\TypeList.h" />
+    <ClInclude Include="Utils\Wcslen.h" />
     <ClInclude Include="Verification\Verifier.h" />
     <ClInclude Include="Verification\VerifyMacros.h" />
     <ClInclude Include="Vmt\VmtCopy.h" />

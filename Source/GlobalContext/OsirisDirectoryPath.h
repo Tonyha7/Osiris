@@ -11,6 +11,7 @@
 #if IS_WIN64()
 #include <Platform/Windows/DLLs/Shell32Dll.h>
 #include <Platform/Windows/CoTaskMemDeleter.h>
+#include <Utils/Wcslen.h>
 #elif IS_LINUX()
 #include <Platform/Linux/LinuxPlatformApi.h>
 #endif
@@ -27,7 +28,7 @@ public:
         if (gotAppDataPath != S_OK)
             return;
 
-        const std::wstring_view appDataPath{appDataPathRaw};
+        const std::wstring_view appDataPath{appDataPathRaw, utils::wcslen(appDataPathRaw)};
         constexpr std::wstring_view ntPathPrefix{L"\\??\\"};
         constexpr auto kPathSeparatorLength{1};
         constexpr auto kNullTerminatorLength{1};
