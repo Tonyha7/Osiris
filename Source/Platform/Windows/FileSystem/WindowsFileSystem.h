@@ -76,7 +76,7 @@ struct WindowsFileSystem {
     static std::size_t readFile(HANDLE fileHandle, std::size_t fileOffset, void* buffer, std::size_t bufferSize) noexcept
     {
         IO_STATUS_BLOCK statusBlock{};
-        LARGE_INTEGER offset{.QuadPart{static_cast<LONGLONG>(fileOffset)}};
+        LARGE_INTEGER offset{.QuadPart = static_cast<LONGLONG>(fileOffset)};
         if (NT_SUCCESS(WindowsSyscalls::NtReadFile(fileHandle, nullptr, nullptr, nullptr, &statusBlock, buffer, static_cast<ULONG>(bufferSize), &offset, nullptr)) && statusBlock.Information <= bufferSize) {
             return statusBlock.Information;
         }
@@ -86,7 +86,7 @@ struct WindowsFileSystem {
     static std::size_t writeFile(HANDLE fileHandle, std::size_t fileOffset, void* buffer, std::size_t bufferSize) noexcept
     {
         IO_STATUS_BLOCK statusBlock{};
-        LARGE_INTEGER offset{.QuadPart{static_cast<LONGLONG>(fileOffset)}};
+        LARGE_INTEGER offset{.QuadPart = static_cast<LONGLONG>(fileOffset)};
         if (NT_SUCCESS(WindowsSyscalls::NtWriteFile(fileHandle, nullptr, nullptr, nullptr, &statusBlock, buffer, static_cast<ULONG>(bufferSize), &offset, nullptr)) && statusBlock.Information <= bufferSize) {
             return statusBlock.Information;
         }
