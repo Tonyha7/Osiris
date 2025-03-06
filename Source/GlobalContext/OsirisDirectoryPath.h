@@ -23,6 +23,8 @@ public:
 #if IS_WIN64()
         wchar_t* appDataPathRaw = nullptr;
         const auto getKnownFolderPath = Shell32Dll{}.SHGetKnownFolderPath();
+        if (!getKnownFolderPath)
+            return;
         const auto gotAppDataPath = getKnownFolderPath(FOLDERID_RoamingAppData, 0, nullptr, &appDataPathRaw);
         std::unique_ptr<wchar_t[], CoTaskMemDeleter> appDataPathMemory{appDataPathRaw};
         if (gotAppDataPath != S_OK)

@@ -66,10 +66,8 @@ struct WindowsFileSystem {
             .SecurityDescriptor = nullptr,
             .SecurityQualityOfService = nullptr
         };
-        
-        HANDLE handle;
-        auto ntStatus = WindowsSyscalls::NtCreateFile(&handle, FILE_LIST_DIRECTORY | SYNCHRONIZE, &objectAttributes, &statusBlock, nullptr, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ | FILE_SHARE_WRITE, FILE_CREATE, FILE_DIRECTORY_FILE | FILE_SYNCHRONOUS_IO_NONALERT | FILE_OPEN_FOR_BACKUP_INTENT, nullptr, 0);
-        if (NT_SUCCESS(ntStatus))
+
+        if (HANDLE handle; NT_SUCCESS(WindowsSyscalls::NtCreateFile(&handle, FILE_LIST_DIRECTORY | SYNCHRONIZE, &objectAttributes, &statusBlock, nullptr, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ | FILE_SHARE_WRITE, FILE_CREATE, FILE_DIRECTORY_FILE | FILE_SYNCHRONOUS_IO_NONALERT | FILE_OPEN_FOR_BACKUP_INTENT, nullptr, 0)))
             WindowsSyscalls::NtClose(handle);
     }
 
